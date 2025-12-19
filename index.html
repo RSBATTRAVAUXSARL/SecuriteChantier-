@@ -3,45 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Safety Tap – Pixel Chantier</title>
+<title>Safety Tap – Chantier Pixel</title>
 
 <style>
-:root { color-scheme: dark; }
 html,body{
-  margin:0;height:100%;
+  margin:0;
+  height:100%;
   background:#0b1020;
   overflow:hidden;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto;
 }
 canvas{
-  width:100vw;height:100vh;
+  width:100vw;
+  height:100vh;
+  display:block;
   image-rendering:pixelated;
   image-rendering:crisp-edges;
   touch-action:none;
-  display:block;
 }
 </style>
 </head>
 <body>
-
 <canvas id="c"></canvas>
 
 <script>
-/* ================== SETUP ================== */
+/* ================== CANVAS ================== */
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d',{alpha:false});
 ctx.imageSmoothingEnabled=false;
 
 const BASE_W=360, BASE_H=640;
-let DPR=window.devicePixelRatio||1;
+const DPR=window.devicePixelRatio||1;
 
-function resize(){
-  canvas.width=BASE_W*DPR;
-  canvas.height=BASE_H*DPR;
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-window.addEventListener('resize',resize);
-resize();
+canvas.width=BASE_W*DPR;
+canvas.height=BASE_H*DPR;
+ctx.setTransform(DPR,0,0,DPR,0,0);
 
 /* ================== GAME STATE ================== */
 let entities=[], pops=[];
@@ -52,11 +47,10 @@ let freezeUntil=0;
 
 /* ================== HELPERS ================== */
 const rand=(a,b)=>a+Math.random()*(b-a);
-const randi=(a,b)=>Math.floor(rand(a,b+1));
 
 /* ================== SPAWN ================== */
 function laneY(){
-  return Math.random()<0.5 ? 360 : 420;
+  return Math.random()<0.5 ? 380 : 440;
 }
 
 function spawnWorker(){
@@ -65,7 +59,7 @@ function spawnWorker(){
     kind:'worker',
     x:dir>0?-40:BASE_W+40,
     y:laneY(),
-    w:28, h:36,
+    w:28,h:36,
     dir,
     speed:rand(40,80),
     hasHelmet:Math.random()>0.4,
@@ -79,7 +73,7 @@ function spawnDog(){
   entities.push({
     kind:'dog',
     x:dir>0?-40:BASE_W+40,
-    y:laneY()+8,
+    y:laneY()+10,
     w:34,h:20,
     dir,
     speed:90
@@ -91,7 +85,7 @@ function spawnStop(){
   entities.push({
     kind:'stop',
     x:dir>0?-30:BASE_W+30,
-    y:laneY()-30,
+    y:laneY()-40,
     w:24,h:32,
     dir,
     speed:50
@@ -100,38 +94,38 @@ function spawnStop(){
 
 /* ================== INPUT ================== */
 canvas.addEventListener('pointerdown',e=>{
-  const rect=canvas.getBoundingClientRect();
-  const px=(e.clientX-rect.left)/rect.width*BASE_W;
-  const py=(e.clientY-rect.top)/rect.height*BASE_H;
+  const r=canvas.getBoundingClientRect();
+  const px=(e.clientX-r.left)/r.width*BASE_W;
+  const py=(e.clientY-r.top)/r.height*BASE_H;
 
   for(let i=entities.length-1;i>=0;i--){
     const en=entities[i];
-    const m=14; // HITBOX MARGE
-    if(px>=en.x-m && px<=en.x+en.w+m &&
-       py>=en.y-m && py<=en.y+en.h+m){
+    const m=14;
+    if(px>=en.x-m&&px<=en.x+en.w+m&&
+       py>=en.y-m&&py<=en.y+en.h+m){
 
       if(en.kind==='worker'){
         if(en.hasHelmet){
           score=Math.max(0,score-20);
           combo=0;
-          pops.push({x:px,y:py,text:'❌ -20',t:0,color:'#ff6b6b'});
+          pops.push({x:px,y:py,t:0,text:'❌ -20',c:'#ff6b6b'});
         }else{
           let pts=en.golden?100:10+combo*2;
           score+=pts;
           combo++;
-          pops.push({x:px,y:py,text:'+'+pts,t:0,color:'#7CFF9A'});
+          pops.push({x:px,y:py,t:0,text:'+'+pts,c:'#7CFF9A'});
         }
       }
 
       if(en.kind==='dog'){
         score=Math.max(0,score-50);
         combo=0;
-        pops.push({x:px,y:py,text:'🐶 -50',t:0,color:'#ff6b6b'});
+        pops.push({x:px,y:py,t:0,text:'🐶 -50',c:'#ff6b6b'});
       }
 
       if(en.kind==='stop'){
         freezeUntil=performance.now()+2000;
-        pops.push({x:px,y:py,text:'🛑 FREEZE',t:0,color:'#7fd1ff'});
+        pops.push({x:px,y:py,t:0,text:'🛑 FREEZE',c:'#7fd1ff'});
       }
 
       entities.splice(i,1);
@@ -159,9 +153,8 @@ function update(dt){
     const e=entities[i];
     if(!frozen){
       e.x+=e.dir*e.speed*dt;
-      if(e.frame!=null) e.frame+=dt*10;
+      e.frame+=dt*10;
     }
-
     if(e.x<-80||e.x>BASE_W+80){
       if(e.kind==='worker'&&!e.hasHelmet){
         score=Math.max(0,score-5);
@@ -178,11 +171,11 @@ function update(dt){
   }
 }
 
-/* ================== DRAW ================== */
+/* ================== DRAW ENTITIES ================== */
 function drawWorker(e){
   const flip=e.dir<0;
   const walk=Math.sin(e.frame)*3;
-  const bob=Math.sin(e.frame*2)*1;
+  const bob=Math.sin(e.frame*2);
 
   const px=(dx,dy,w,h,c)=>{
     const rx=flip?(e.x+e.w-(dx+w)):(e.x+dx);
@@ -190,23 +183,18 @@ function drawWorker(e){
     ctx.fillRect(rx,e.y+dy+bob,w,h);
   };
 
-  // shadow
   ctx.fillStyle='rgba(0,0,0,.3)';
   ctx.fillRect(e.x+4,e.y+e.h-2,e.w-8,3);
 
-  // legs
   px(6,22+walk,6,10,'#2c5aa0');
   px(16,22-walk,6,10,'#2c5aa0');
 
-  // body
   px(6,12,16,12,'#ffb74d');
   px(6,16,16,2,'#ff8f2a');
 
-  // arms
   px(2,14,4,8,'#ffb74d');
   px(22,14,4,8,'#ffb74d');
 
-  // head
   px(10,4,8,8,'#d7b08a');
 
   if(e.hasHelmet){
@@ -234,24 +222,46 @@ function drawStop(e){
   ctx.fillRect(e.x+4,e.y+6,16,2);
 }
 
-/* ================== MAIN DRAW ================== */
-function draw(){
+/* ================== STATIC DECOR ================== */
+function drawDecor(){
+  // ciel
   ctx.fillStyle='#86bdf2';
   ctx.fillRect(0,0,BASE_W,BASE_H);
 
-  // skyline
+  // immeubles
+  ctx.fillStyle='#5c7fa6';
   for(let i=0;i<10;i++){
-    ctx.fillStyle='rgba(18,28,60,.4)';
-    ctx.fillRect(20+i*32,140-randi(40,80),20,200);
+    ctx.fillRect(20+i*32,120,20,180);
   }
 
-  // sol bandes
+  // grue
+  ctx.fillStyle='#f0a93a';
+  ctx.fillRect(260,80,6,160);
+  ctx.fillRect(140,80,140,6);
+  ctx.fillStyle='#3a2a15';
+  ctx.fillRect(210,86,2,40);
+  ctx.fillRect(206,126,10,4);
+
+  // sol chantier
+  ctx.fillStyle='#c9a46b';
+  ctx.fillRect(0,300,BASE_W,BASE_H);
+
+  ctx.fillStyle='#c39a5f';
+  ctx.fillRect(0,360,BASE_W,60);
+  ctx.fillRect(0,420,BASE_W,60);
+
+  // barrières
+  ctx.fillStyle='#ffb74d';
   for(let i=0;i<6;i++){
-    ctx.fillStyle=i%2?'#caa76d':'#c39a5f';
-    ctx.fillRect(0,300+i*60,BASE_W,60);
+    ctx.fillRect(20+i*55,520,30,6);
+    ctx.fillRect(22+i*55,526,4,18);
   }
+}
 
-  // HUD
+/* ================== DRAW ================== */
+function draw(){
+  drawDecor();
+
   ctx.fillStyle='rgba(0,0,0,.6)';
   ctx.fillRect(0,0,BASE_W,30);
   ctx.fillStyle='#fff';
@@ -260,7 +270,6 @@ function draw(){
   ctx.fillText('Combo x'+Math.max(1,combo),120,20);
   ctx.fillText(Math.ceil(timer)+'s',300,20);
 
-  // entities
   entities.sort((a,b)=>a.y-b.y);
   for(const e of entities){
     if(e.kind==='worker') drawWorker(e);
@@ -268,21 +277,13 @@ function draw(){
     if(e.kind==='stop') drawStop(e);
   }
 
-  // pops
   for(const p of pops){
     ctx.globalAlpha=1-p.t;
-    ctx.fillStyle=p.color;
+    ctx.fillStyle=p.c;
     ctx.font='bold 14px system-ui';
     ctx.fillText(p.text,p.x,p.y);
     ctx.globalAlpha=1;
   }
-
-  // footer
-  ctx.fillStyle='rgba(0,0,0,.5)';
-  ctx.fillRect(0,BASE_H-26,BASE_W,26);
-  ctx.fillStyle='#ddd';
-  ctx.font='11px system-ui';
-  ctx.fillText('🎯 Tape SANS casque • 🐶 piège • 🛑 bonus',10,BASE_H-8);
 }
 
 /* ================== LOOP ================== */
