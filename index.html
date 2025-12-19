@@ -23,30 +23,46 @@ canvas{
 </style>
 </head>
 <body>
+
 <canvas id="c"></canvas>
 
 <script>
 /* ================== CANVAS ================== */
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d',{alpha:false});
-ctx.imageSmoothingEnabled=false;
+ctx.imageSmoothingEnabled = false;
 
-const BASE_W=360, BASE_H=640;
-const DPR=window.devicePixelRatio||1;
+const BASE_W = 360;
+const BASE_H = 640;
+const DPR = window.devicePixelRatio || 1;
 
-canvas.width=BASE_W*DPR;
-canvas.height=BASE_H*DPR;
+canvas.width = BASE_W * DPR;
+canvas.height = BASE_H * DPR;
 ctx.setTransform(DPR,0,0,DPR,0,0);
 
 /* ================== GAME STATE ================== */
-let entities=[], pops=[];
-let score=0, combo=0, timer=60;
-let last=performance.now();
-let spawnAcc=0;
-let freezeUntil=0;
+let entities = [];
+let pops = [];
+let score = 0;
+let combo = 0;
+let timer = 60;
+let last = performance.now();
+let spawnAcc = 0;
+let freezeUntil = 0;
+let gameOver = false;
 
 /* ================== HELPERS ================== */
-const rand=(a,b)=>a+Math.random()*(b-a);
+const rand = (a,b)=>a+Math.random()*(b-a);
+
+/* ================== RANK ================== */
+function getRank(score){
+  if(score >= 500) return 'S';
+  if(score >= 400) return 'A';
+  if(score >= 300) return 'B';
+  if(score >= 200) return 'C';
+  if(score >= 100) return 'D';
+  return 'F';
+}
 
 /* ================== SPAWN ================== */
 function laneY(){
@@ -54,17 +70,17 @@ function laneY(){
 }
 
 function spawnWorker(){
-  const dir=Math.random()<0.5?1:-1;
+  const dir = Math.random()<0.5 ? 1 : -1;
   entities.push({
     kind:'worker',
-    x:dir>0?-40:BASE_W+40,
-    y:laneY(),
-    w:28,h:36,
+    x: dir>0 ? -40 : BASE_W+40,
+    y: laneY(),
+    w:28, h:36,
     dir,
-    speed:rand(40,80),
-    hasHelmet:Math.random()>0.4,
-    golden:Math.random()<0.06,
-    frame:Math.random()*Math.PI*2
+    speed: rand(40,80),
+    hasHelmet: Math.random()>0.4,
+    golden: Math.random()<0.06,
+    frame: Math.random()*Math.PI*2
   });
 }
 
@@ -94,37 +110,39 @@ function spawnStop(){
 
 /* ================== INPUT ================== */
 canvas.addEventListener('pointerdown',e=>{
-  const r=canvas.getBoundingClientRect();
-  const px=(e.clientX-r.left)/r.width*BASE_W;
-  const py=(e.clientY-r.top)/r.height*BASE_H;
+  if(gameOver) return;
+
+  const r = canvas.getBoundingClientRect();
+  const px = (e.clientX-r.left)/r.width*BASE_W;
+  const py = (e.clientY-r.top)/r.height*BASE_H;
 
   for(let i=entities.length-1;i>=0;i--){
-    const en=entities[i];
-    const m=14;
-    if(px>=en.x-m&&px<=en.x+en.w+m&&
-       py>=en.y-m&&py<=en.y+en.h+m){
+    const en = entities[i];
+    const m = 14;
+    if(px>=en.x-m && px<=en.x+en.w+m &&
+       py>=en.y-m && py<=en.y+en.h+m){
 
       if(en.kind==='worker'){
         if(en.hasHelmet){
-          score=Math.max(0,score-20);
-          combo=0;
+          score = Math.max(0,score-20);
+          combo = 0;
           pops.push({x:px,y:py,t:0,text:'❌ -20',c:'#ff6b6b'});
         }else{
-          let pts=en.golden?100:10+combo*2;
-          score+=pts;
+          let pts = en.golden ? 100 : 10 + combo*2;
+          score += pts;
           combo++;
           pops.push({x:px,y:py,t:0,text:'+'+pts,c:'#7CFF9A'});
         }
       }
 
       if(en.kind==='dog'){
-        score=Math.max(0,score-50);
-        combo=0;
+        score = Math.max(0,score-50);
+        combo = 0;
         pops.push({x:px,y:py,t:0,text:'🐶 -50',c:'#ff6b6b'});
       }
 
       if(en.kind==='stop'){
-        freezeUntil=performance.now()+2000;
+        freezeUntil = performance.now()+2000;
         pops.push({x:px,y:py,t:0,text:'🛑 FREEZE',c:'#7fd1ff'});
       }
 
@@ -136,9 +154,15 @@ canvas.addEventListener('pointerdown',e=>{
 
 /* ================== UPDATE ================== */
 function update(dt){
-  timer=Math.max(0,timer-dt);
+  if(gameOver) return;
 
-  spawnAcc+=dt*(1+Math.min(1,(60-timer)/30));
+  timer = Math.max(0, timer - dt);
+  if(timer === 0){
+    gameOver = true;
+    return;
+  }
+
+  spawnAcc += dt*(1+Math.min(1,(60-timer)/30));
   while(spawnAcc>1){
     spawnAcc--;
     const r=Math.random();
@@ -147,7 +171,7 @@ function update(dt){
     else spawnWorker();
   }
 
-  const frozen=performance.now()<freezeUntil;
+  const frozen = performance.now()<freezeUntil;
 
   for(let i=entities.length-1;i>=0;i--){
     const e=entities[i];
@@ -234,13 +258,13 @@ function drawDecor(){
     ctx.fillRect(20+i*32,120,20,180);
   }
 
-  // grue
+  // grue FIXE AU SOL
   ctx.fillStyle='#f0a93a';
-  ctx.fillRect(260,80,6,160);
-  ctx.fillRect(140,80,140,6);
-  ctx.fillStyle='#3a2a15';
-  ctx.fillRect(210,86,2,40);
-  ctx.fillRect(206,126,10,4);
+  ctx.fillRect(260,120,8,300);     // mât
+  ctx.fillRect(120,120,200,8);     // bras
+  ctx.fillStyle='#2a2a2a';
+  ctx.fillRect(200,128,2,60);      // câble
+  ctx.fillRect(194,188,14,4);      // crochet
 
   // sol chantier
   ctx.fillStyle='#c9a46b';
@@ -249,19 +273,13 @@ function drawDecor(){
   ctx.fillStyle='#c39a5f';
   ctx.fillRect(0,360,BASE_W,60);
   ctx.fillRect(0,420,BASE_W,60);
-
-  // barrières
-  ctx.fillStyle='#ffb74d';
-  for(let i=0;i<6;i++){
-    ctx.fillRect(20+i*55,520,30,6);
-    ctx.fillRect(22+i*55,526,4,18);
-  }
 }
 
 /* ================== DRAW ================== */
 function draw(){
   drawDecor();
 
+  // HUD
   ctx.fillStyle='rgba(0,0,0,.6)';
   ctx.fillRect(0,0,BASE_W,30);
   ctx.fillStyle='#fff';
@@ -283,6 +301,34 @@ function draw(){
     ctx.font='bold 14px system-ui';
     ctx.fillText(p.text,p.x,p.y);
     ctx.globalAlpha=1;
+  }
+
+  /* ===== FIN DE PARTIE ===== */
+  if(gameOver){
+    ctx.fillStyle='rgba(0,0,0,0.75)';
+    ctx.fillRect(0,0,BASE_W,BASE_H);
+
+    const rank=getRank(score);
+
+    ctx.textAlign='center';
+    ctx.fillStyle='#fff';
+    ctx.font='bold 28px system-ui';
+    ctx.fillText('FÉLICITATIONS',BASE_W/2,160);
+
+    ctx.font='bold 64px system-ui';
+    ctx.fillStyle='#ffd24b';
+    ctx.fillText(rank,BASE_W/2,250);
+
+    ctx.font='bold 16px system-ui';
+    ctx.fillStyle='#fff';
+    ctx.fillText('RS-BAT TRAVAUX vous souhaite',BASE_W/2,330);
+    ctx.fillText('de joyeuses fêtes de fin d’année',BASE_W/2,360);
+
+    ctx.font='14px system-ui';
+    ctx.fillStyle='#ccc';
+    ctx.fillText('Score final : '+score,BASE_W/2,410);
+
+    ctx.textAlign='left';
   }
 }
 
