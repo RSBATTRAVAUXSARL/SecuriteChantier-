@@ -23,64 +23,57 @@ canvas{
 </style>
 </head>
 <body>
-
 <canvas id="c"></canvas>
 
 <script>
 /* ================== CANVAS ================== */
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d',{alpha:false});
-ctx.imageSmoothingEnabled = false;
+ctx.imageSmoothingEnabled=false;
 
-const BASE_W = 360;
-const BASE_H = 640;
-const DPR = window.devicePixelRatio || 1;
+const BASE_W=360, BASE_H=640;
+const DPR=window.devicePixelRatio||1;
 
-canvas.width = BASE_W * DPR;
-canvas.height = BASE_H * DPR;
+canvas.width=BASE_W*DPR;
+canvas.height=BASE_H*DPR;
 ctx.setTransform(DPR,0,0,DPR,0,0);
 
 /* ================== GAME STATE ================== */
-let entities = [];
-let pops = [];
-let score = 0;
-let combo = 0;
-let timer = 60;
-let last = performance.now();
-let spawnAcc = 0;
-let freezeUntil = 0;
-let gameOver = false;
+let entities=[], pops=[];
+let score=0, combo=0, timer=60;
+let last=performance.now();
+let spawnAcc=0;
+let freezeUntil=0;
+let gameOver=false;
 
 /* ================== HELPERS ================== */
-const rand = (a,b)=>a+Math.random()*(b-a);
+const rand=(a,b)=>a+Math.random()*(b-a);
 
 /* ================== RANK ================== */
 function getRank(score){
-  if(score >= 500) return 'S';
-  if(score >= 400) return 'A';
-  if(score >= 300) return 'B';
-  if(score >= 200) return 'C';
-  if(score >= 100) return 'D';
+  if(score>=500) return 'S';
+  if(score>=400) return 'A';
+  if(score>=300) return 'B';
+  if(score>=200) return 'C';
+  if(score>=100) return 'D';
   return 'F';
 }
 
 /* ================== SPAWN ================== */
-function laneY(){
-  return Math.random()<0.5 ? 380 : 440;
-}
+function laneY(){ return Math.random()<0.5 ? 380 : 440; }
 
 function spawnWorker(){
-  const dir = Math.random()<0.5 ? 1 : -1;
+  const dir=Math.random()<0.5?1:-1;
   entities.push({
     kind:'worker',
-    x: dir>0 ? -40 : BASE_W+40,
-    y: laneY(),
-    w:28, h:36,
+    x:dir>0?-40:BASE_W+40,
+    y:laneY(),
+    w:28,h:36,
     dir,
-    speed: rand(40,80),
-    hasHelmet: Math.random()>0.4,
-    golden: Math.random()<0.06,
-    frame: Math.random()*Math.PI*2
+    speed:rand(40,80),
+    hasHelmet:Math.random()>0.4,
+    golden:Math.random()<0.06,
+    frame:Math.random()*Math.PI*2
   });
 }
 
@@ -88,9 +81,9 @@ function spawnDog(){
   const dir=Math.random()<0.5?1:-1;
   entities.push({
     kind:'dog',
-    x:dir>0?-40:BASE_W+40,
+    x:dir>0?-50:BASE_W+50,
     y:laneY()+10,
-    w:34,h:20,
+    w:40,h:22,
     dir,
     speed:90
   });
@@ -111,38 +104,37 @@ function spawnStop(){
 /* ================== INPUT ================== */
 canvas.addEventListener('pointerdown',e=>{
   if(gameOver) return;
-
-  const r = canvas.getBoundingClientRect();
-  const px = (e.clientX-r.left)/r.width*BASE_W;
-  const py = (e.clientY-r.top)/r.height*BASE_H;
+  const r=canvas.getBoundingClientRect();
+  const px=(e.clientX-r.left)/r.width*BASE_W;
+  const py=(e.clientY-r.top)/r.height*BASE_H;
 
   for(let i=entities.length-1;i>=0;i--){
-    const en = entities[i];
-    const m = 14;
-    if(px>=en.x-m && px<=en.x+en.w+m &&
-       py>=en.y-m && py<=en.y+en.h+m){
+    const en=entities[i];
+    const m=14;
+    if(px>=en.x-m&&px<=en.x+en.w+m&&
+       py>=en.y-m&&py<=en.y+en.h+m){
 
       if(en.kind==='worker'){
         if(en.hasHelmet){
-          score = Math.max(0,score-20);
-          combo = 0;
+          score=Math.max(0,score-20);
+          combo=0;
           pops.push({x:px,y:py,t:0,text:'❌ -20',c:'#ff6b6b'});
         }else{
-          let pts = en.golden ? 100 : 10 + combo*2;
-          score += pts;
+          const pts=en.golden?100:10+combo*2;
+          score+=pts;
           combo++;
           pops.push({x:px,y:py,t:0,text:'+'+pts,c:'#7CFF9A'});
         }
       }
 
       if(en.kind==='dog'){
-        score = Math.max(0,score-50);
-        combo = 0;
-        pops.push({x:px,y:py,t:0,text:'🐶 -50',c:'#ff6b6b'});
+        score=Math.max(0,score-50);
+        combo=0;
+        pops.push({x:px,y:py,t:0,text:'🐶 -50',c:'#ff4d4d'});
       }
 
       if(en.kind==='stop'){
-        freezeUntil = performance.now()+2000;
+        freezeUntil=performance.now()+2000;
         pops.push({x:px,y:py,t:0,text:'🛑 FREEZE',c:'#7fd1ff'});
       }
 
@@ -155,29 +147,25 @@ canvas.addEventListener('pointerdown',e=>{
 /* ================== UPDATE ================== */
 function update(dt){
   if(gameOver) return;
+  timer=Math.max(0,timer-dt);
+  if(timer===0){ gameOver=true; return; }
 
-  timer = Math.max(0, timer - dt);
-  if(timer === 0){
-    gameOver = true;
-    return;
-  }
-
-  spawnAcc += dt*(1+Math.min(1,(60-timer)/30));
+  spawnAcc+=dt*(1+Math.min(1,(60-timer)/30));
   while(spawnAcc>1){
     spawnAcc--;
     const r=Math.random();
-    if(r<0.1) spawnDog();
-    else if(r<0.18) spawnStop();
+    if(r<0.12) spawnDog();
+    else if(r<0.22) spawnStop();
     else spawnWorker();
   }
 
-  const frozen = performance.now()<freezeUntil;
+  const frozen=performance.now()<freezeUntil;
 
   for(let i=entities.length-1;i>=0;i--){
     const e=entities[i];
     if(!frozen){
       e.x+=e.dir*e.speed*dt;
-      e.frame+=dt*10;
+      if(e.frame!=null) e.frame+=dt*10;
     }
     if(e.x<-80||e.x>BASE_W+80){
       if(e.kind==='worker'&&!e.hasHelmet){
@@ -230,11 +218,13 @@ function drawWorker(e){
 }
 
 function drawDog(e){
-  ctx.fillStyle='#5b3a22';
-  ctx.fillRect(e.x,e.y+8,30,12);
-  ctx.fillStyle='#2b1a10';
-  ctx.fillRect(e.x+6,e.y+18,6,6);
-  ctx.fillRect(e.x+18,e.y+18,6,6);
+  ctx.fillStyle='#3a1f0f';
+  ctx.fillRect(e.x,e.y+10,36,10);       // corps
+  ctx.fillRect(e.x+2,e.y+6,10,8);        // tête
+  ctx.fillRect(e.x+6,e.y+4,4,4);         // oreille
+  ctx.fillRect(e.x+24,e.y+8,10,4);       // queue
+  ctx.fillStyle='#000';
+  ctx.fillRect(e.x+6,e.y+10,2,2);        // œil
 }
 
 function drawStop(e){
@@ -246,27 +236,22 @@ function drawStop(e){
   ctx.fillRect(e.x+4,e.y+6,16,2);
 }
 
-/* ================== STATIC DECOR ================== */
+/* ================== DECOR ================== */
 function drawDecor(){
-  // ciel
   ctx.fillStyle='#86bdf2';
   ctx.fillRect(0,0,BASE_W,BASE_H);
 
-  // immeubles
   ctx.fillStyle='#5c7fa6';
-  for(let i=0;i<10;i++){
-    ctx.fillRect(20+i*32,120,20,180);
-  }
+  for(let i=0;i<10;i++) ctx.fillRect(20+i*32,120,20,180);
 
-  // grue FIXE AU SOL
   ctx.fillStyle='#f0a93a';
-  ctx.fillRect(260,120,8,300);     // mât
-  ctx.fillRect(120,120,200,8);     // bras
-  ctx.fillStyle='#2a2a2a';
-  ctx.fillRect(200,128,2,60);      // câble
-  ctx.fillRect(194,188,14,4);      // crochet
+  ctx.fillRect(260,120,8,300);
+  ctx.fillRect(120,120,200,8);
 
-  // sol chantier
+  ctx.fillStyle='#2a2a2a';
+  ctx.fillRect(200,128,2,60);
+  ctx.fillRect(194,188,14,4);
+
   ctx.fillStyle='#c9a46b';
   ctx.fillRect(0,300,BASE_W,BASE_H);
 
@@ -279,7 +264,7 @@ function drawDecor(){
 function draw(){
   drawDecor();
 
-  // HUD
+  // HUD TOP
   ctx.fillStyle='rgba(0,0,0,.6)';
   ctx.fillRect(0,0,BASE_W,30);
   ctx.fillStyle='#fff';
@@ -295,6 +280,21 @@ function draw(){
     if(e.kind==='stop') drawStop(e);
   }
 
+  // HUD BOTTOM (instructions modernes)
+  ctx.fillStyle='rgba(20,20,20,.75)';
+  ctx.fillRect(0,BASE_H-36,BASE_W,36);
+
+  ctx.font='12px system-ui';
+  ctx.fillStyle='#7CFF9A';
+  ctx.fillText('🎯 Sans casque = + points',8,BASE_H-14);
+
+  ctx.fillStyle='#ff4d4d';
+  ctx.fillText('🐶 Chien = -50',160,BASE_H-14);
+
+  ctx.fillStyle='#7fd1ff';
+  ctx.fillText('🛑 Panneau = Freeze',260,BASE_H-14);
+
+  // POPS
   for(const p of pops){
     ctx.globalAlpha=1-p.t;
     ctx.fillStyle=p.c;
@@ -303,14 +303,14 @@ function draw(){
     ctx.globalAlpha=1;
   }
 
-  /* ===== FIN DE PARTIE ===== */
+  // FIN
   if(gameOver){
-    ctx.fillStyle='rgba(0,0,0,0.75)';
+    ctx.fillStyle='rgba(0,0,0,0.8)';
     ctx.fillRect(0,0,BASE_W,BASE_H);
 
     const rank=getRank(score);
-
     ctx.textAlign='center';
+
     ctx.fillStyle='#fff';
     ctx.font='bold 28px system-ui';
     ctx.fillText('FÉLICITATIONS',BASE_W/2,160);
