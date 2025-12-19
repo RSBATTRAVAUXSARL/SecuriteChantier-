@@ -33,7 +33,6 @@ ctx.imageSmoothingEnabled=false;
 
 const BASE_W=360, BASE_H=640;
 const DPR=window.devicePixelRatio||1;
-
 canvas.width=BASE_W*DPR;
 canvas.height=BASE_H*DPR;
 ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -45,17 +44,18 @@ let last=performance.now();
 let spawnAcc=0;
 let freezeUntil=0;
 let gameOver=false;
+let showRulesTime=6; // secondes affichage règles
 
 /* ================== HELPERS ================== */
 const rand=(a,b)=>a+Math.random()*(b-a);
 
 /* ================== RANK ================== */
-function getRank(score){
-  if(score>=500) return 'S';
-  if(score>=400) return 'A';
-  if(score>=300) return 'B';
-  if(score>=200) return 'C';
-  if(score>=100) return 'D';
+function getRank(s){
+  if(s>=500) return 'S';
+  if(s>=400) return 'A';
+  if(s>=300) return 'B';
+  if(s>=200) return 'C';
+  if(s>=100) return 'D';
   return 'F';
 }
 
@@ -81,11 +81,12 @@ function spawnDog(){
   const dir=Math.random()<0.5?1:-1;
   entities.push({
     kind:'dog',
-    x:dir>0?-50:BASE_W+50,
-    y:laneY()+10,
-    w:40,h:22,
+    x:dir>0?-70:BASE_W+70,
+    y:laneY()+12,
+    w:48,h:26,
     dir,
-    speed:90
+    speed:120,
+    frame:Math.random()*Math.PI*2
   });
 }
 
@@ -97,13 +98,14 @@ function spawnStop(){
     y:laneY()-40,
     w:24,h:32,
     dir,
-    speed:50
+    speed:55
   });
 }
 
 /* ================== INPUT ================== */
 canvas.addEventListener('pointerdown',e=>{
   if(gameOver) return;
+
   const r=canvas.getBoundingClientRect();
   const px=(e.clientX-r.left)/r.width*BASE_W;
   const py=(e.clientY-r.top)/r.height*BASE_H;
@@ -147,15 +149,18 @@ canvas.addEventListener('pointerdown',e=>{
 /* ================== UPDATE ================== */
 function update(dt){
   if(gameOver) return;
+
   timer=Math.max(0,timer-dt);
   if(timer===0){ gameOver=true; return; }
+
+  showRulesTime=Math.max(0,showRulesTime-dt);
 
   spawnAcc+=dt*(1+Math.min(1,(60-timer)/30));
   while(spawnAcc>1){
     spawnAcc--;
     const r=Math.random();
-    if(r<0.12) spawnDog();
-    else if(r<0.22) spawnStop();
+    if(r<0.15) spawnDog();
+    else if(r<0.25) spawnStop();
     else spawnWorker();
   }
 
@@ -165,9 +170,9 @@ function update(dt){
     const e=entities[i];
     if(!frozen){
       e.x+=e.dir*e.speed*dt;
-      if(e.frame!=null) e.frame+=dt*10;
+      if(e.frame!=null) e.frame+=dt*12;
     }
-    if(e.x<-80||e.x>BASE_W+80){
+    if(e.x<-100||e.x>BASE_W+100){
       if(e.kind==='worker'&&!e.hasHelmet){
         score=Math.max(0,score-5);
         combo=0;
@@ -178,7 +183,7 @@ function update(dt){
 
   for(let i=pops.length-1;i>=0;i--){
     pops[i].t+=dt;
-    pops[i].y-=20*dt;
+    pops[i].y-=22*dt;
     if(pops[i].t>1) pops.splice(i,1);
   }
 }
@@ -218,13 +223,49 @@ function drawWorker(e){
 }
 
 function drawDog(e){
-  ctx.fillStyle='#3a1f0f';
-  ctx.fillRect(e.x,e.y+10,36,10);       // corps
-  ctx.fillRect(e.x+2,e.y+6,10,8);        // tête
-  ctx.fillRect(e.x+6,e.y+4,4,4);         // oreille
-  ctx.fillRect(e.x+24,e.y+8,10,4);       // queue
-  ctx.fillStyle='#000';
-  ctx.fillRect(e.x+6,e.y+10,2,2);        // œil
+  const flip=e.dir<0;
+  const t=e.frame;
+  const bob=Math.sin(t*2)*1;
+  const leg=Math.sin(t)>0?1:0;
+
+  const px=(dx,dy,w,h,c)=>{
+    const rx=flip?(e.x+e.w-(dx+w)):(e.x+dx);
+    ctx.fillStyle=c;
+    ctx.fillRect(rx,e.y+dy+bob,w,h);
+  };
+
+  // ombre
+  ctx.fillStyle='rgba(0,0,0,.3)';
+  ctx.fillRect(e.x+8,e.y+e.h-2,e.w-16,3);
+
+  // corps
+  px(14,12,24,8,'#4b2614');
+
+  // tête + museau
+  px(6,10,10,10,'#5c2e16');
+  px(2,12,6,6,'#2a140a');
+  px(6,14,2,2,'#000');
+
+  // oreille
+  px(10,8,4,4,'#2a140a');
+
+  // queue
+  px(38,12,6,3,'#2a140a');
+
+  // pattes (4)
+  px(14,20,4,4,'#2a140a');
+  px(20,20,4,4,'#2a140a');
+  px(28,20,4,4,'#2a140a');
+  px(34,20,4,4,'#2a140a');
+
+  // animation pattes
+  if(leg){
+    px(14,19,4,4,'#2a140a');
+    px(28,19,4,4,'#2a140a');
+  }else{
+    px(20,19,4,4,'#2a140a');
+    px(34,19,4,4,'#2a140a');
+  }
 }
 
 function drawStop(e){
@@ -254,7 +295,6 @@ function drawDecor(){
 
   ctx.fillStyle='#c9a46b';
   ctx.fillRect(0,300,BASE_W,BASE_H);
-
   ctx.fillStyle='#c39a5f';
   ctx.fillRect(0,360,BASE_W,60);
   ctx.fillRect(0,420,BASE_W,60);
@@ -273,6 +313,17 @@ function draw(){
   ctx.fillText('Combo x'+Math.max(1,combo),120,20);
   ctx.fillText(Math.ceil(timer)+'s',300,20);
 
+  // RÈGLES BLEUES
+  if(showRulesTime>0){
+    ctx.fillStyle='rgba(40,120,255,.85)';
+    ctx.fillRect(10,36,340,56);
+    ctx.fillStyle='#fff';
+    ctx.font='12px system-ui';
+    ctx.fillText('🎯 Tape les ouvriers SANS casque = points',20,56);
+    ctx.fillText('🐶 Le chien = -50 points',20,72);
+    ctx.fillText('🛑 Panneau = gèle le chantier',20,88);
+  }
+
   entities.sort((a,b)=>a.y-b.y);
   for(const e of entities){
     if(e.kind==='worker') drawWorker(e);
@@ -280,21 +331,6 @@ function draw(){
     if(e.kind==='stop') drawStop(e);
   }
 
-  // HUD BOTTOM (instructions modernes)
-  ctx.fillStyle='rgba(20,20,20,.75)';
-  ctx.fillRect(0,BASE_H-36,BASE_W,36);
-
-  ctx.font='12px system-ui';
-  ctx.fillStyle='#7CFF9A';
-  ctx.fillText('🎯 Sans casque = + points',8,BASE_H-14);
-
-  ctx.fillStyle='#ff4d4d';
-  ctx.fillText('🐶 Chien = -50',160,BASE_H-14);
-
-  ctx.fillStyle='#7fd1ff';
-  ctx.fillText('🛑 Panneau = Freeze',260,BASE_H-14);
-
-  // POPS
   for(const p of pops){
     ctx.globalAlpha=1-p.t;
     ctx.fillStyle=p.c;
@@ -303,14 +339,12 @@ function draw(){
     ctx.globalAlpha=1;
   }
 
-  // FIN
   if(gameOver){
-    ctx.fillStyle='rgba(0,0,0,0.8)';
+    ctx.fillStyle='rgba(0,0,0,.8)';
     ctx.fillRect(0,0,BASE_W,BASE_H);
 
     const rank=getRank(score);
     ctx.textAlign='center';
-
     ctx.fillStyle='#fff';
     ctx.font='bold 28px system-ui';
     ctx.fillText('FÉLICITATIONS',BASE_W/2,160);
@@ -327,7 +361,6 @@ function draw(){
     ctx.font='14px system-ui';
     ctx.fillStyle='#ccc';
     ctx.fillText('Score final : '+score,BASE_W/2,410);
-
     ctx.textAlign='left';
   }
 }
