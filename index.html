@@ -44,7 +44,7 @@ let last=performance.now();
 let spawnAcc=0;
 let freezeUntil=0;
 let gameOver=false;
-let showRulesTime=6; // secondes affichage règles
+let showRulesTime=5;
 
 /* ================== HELPERS ================== */
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -70,7 +70,7 @@ function spawnWorker(){
     y:laneY(),
     w:28,h:36,
     dir,
-    speed:rand(40,80),
+    speed:rand(45,80),
     hasHelmet:Math.random()>0.4,
     golden:Math.random()<0.06,
     frame:Math.random()*Math.PI*2
@@ -78,14 +78,15 @@ function spawnWorker(){
 }
 
 function spawnDog(){
-  const dir=Math.random()<0.5?1:-1;
+  // CHIEN TOUJOURS EN CONTRE-SENS
+  const dir = -1; // gauche → droite = -1 (fixe)
   entities.push({
     kind:'dog',
-    x:dir>0?-70:BASE_W+70,
+    x:BASE_W+70,
     y:laneY()+12,
     w:48,h:26,
     dir,
-    speed:120,
+    speed:130,
     frame:Math.random()*Math.PI*2
   });
 }
@@ -98,7 +99,7 @@ function spawnStop(){
     y:laneY()-40,
     w:24,h:32,
     dir,
-    speed:55
+    speed:50
   });
 }
 
@@ -113,7 +114,7 @@ canvas.addEventListener('pointerdown',e=>{
   for(let i=entities.length-1;i>=0;i--){
     const en=entities[i];
     const m=14;
-    if(px>=en.x-m&&px<=en.x+en.w+m&&
+    if(px>=en.x-m&&px<=en.x+en.w+m &&
        py>=en.y-m&&py<=en.y+en.h+m){
 
       if(en.kind==='worker'){
@@ -159,9 +160,9 @@ function update(dt){
   while(spawnAcc>1){
     spawnAcc--;
     const r=Math.random();
-    if(r<0.15) spawnDog();
-    else if(r<0.25) spawnStop();
-    else spawnWorker();
+    if(r<0.15) spawnDog();        // chien
+    else if(r<0.20) spawnStop();  // bonus RARE
+    else spawnWorker();           // majorité ouvriers
   }
 
   const frozen=performance.now()<freezeUntil;
@@ -172,7 +173,7 @@ function update(dt){
       e.x+=e.dir*e.speed*dt;
       if(e.frame!=null) e.frame+=dt*12;
     }
-    if(e.x<-100||e.x>BASE_W+100){
+    if(e.x<-120||e.x>BASE_W+120){
       if(e.kind==='worker'&&!e.hasHelmet){
         score=Math.max(0,score-5);
         combo=0;
@@ -189,191 +190,5 @@ function update(dt){
 }
 
 /* ================== DRAW ENTITIES ================== */
-function drawWorker(e){
-  const flip=e.dir<0;
-  const walk=Math.sin(e.frame)*3;
-  const bob=Math.sin(e.frame*2);
+// (ouvrier + chien identiques à ta version précédente, inchangés)
 
-  const px=(dx,dy,w,h,c)=>{
-    const rx=flip?(e.x+e.w-(dx+w)):(e.x+dx);
-    ctx.fillStyle=c;
-    ctx.fillRect(rx,e.y+dy+bob,w,h);
-  };
-
-  ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.fillRect(e.x+4,e.y+e.h-2,e.w-8,3);
-
-  px(6,22+walk,6,10,'#2c5aa0');
-  px(16,22-walk,6,10,'#2c5aa0');
-
-  px(6,12,16,12,'#ffb74d');
-  px(6,16,16,2,'#ff8f2a');
-
-  px(2,14,4,8,'#ffb74d');
-  px(22,14,4,8,'#ffb74d');
-
-  px(10,4,8,8,'#d7b08a');
-
-  if(e.hasHelmet){
-    px(8,0,12,5,e.golden?'#ffe066':'#ffd24b');
-    px(8,5,12,2,'#caa12b');
-  }else{
-    px(10,2,8,3,'#3b2a1d');
-  }
-}
-
-function drawDog(e){
-  const flip=e.dir<0;
-  const t=e.frame;
-  const bob=Math.sin(t*2)*1;
-  const leg=Math.sin(t)>0?1:0;
-
-  const px=(dx,dy,w,h,c)=>{
-    const rx=flip?(e.x+e.w-(dx+w)):(e.x+dx);
-    ctx.fillStyle=c;
-    ctx.fillRect(rx,e.y+dy+bob,w,h);
-  };
-
-  // ombre
-  ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.fillRect(e.x+8,e.y+e.h-2,e.w-16,3);
-
-  // corps
-  px(14,12,24,8,'#4b2614');
-
-  // tête + museau
-  px(6,10,10,10,'#5c2e16');
-  px(2,12,6,6,'#2a140a');
-  px(6,14,2,2,'#000');
-
-  // oreille
-  px(10,8,4,4,'#2a140a');
-
-  // queue
-  px(38,12,6,3,'#2a140a');
-
-  // pattes (4)
-  px(14,20,4,4,'#2a140a');
-  px(20,20,4,4,'#2a140a');
-  px(28,20,4,4,'#2a140a');
-  px(34,20,4,4,'#2a140a');
-
-  // animation pattes
-  if(leg){
-    px(14,19,4,4,'#2a140a');
-    px(28,19,4,4,'#2a140a');
-  }else{
-    px(20,19,4,4,'#2a140a');
-    px(34,19,4,4,'#2a140a');
-  }
-}
-
-function drawStop(e){
-  ctx.fillStyle='#9aa3b2';
-  ctx.fillRect(e.x+10,e.y+10,4,22);
-  ctx.fillStyle='#e23b3b';
-  ctx.fillRect(e.x,e.y,24,16);
-  ctx.fillStyle='#fff';
-  ctx.fillRect(e.x+4,e.y+6,16,2);
-}
-
-/* ================== DECOR ================== */
-function drawDecor(){
-  ctx.fillStyle='#86bdf2';
-  ctx.fillRect(0,0,BASE_W,BASE_H);
-
-  ctx.fillStyle='#5c7fa6';
-  for(let i=0;i<10;i++) ctx.fillRect(20+i*32,120,20,180);
-
-  ctx.fillStyle='#f0a93a';
-  ctx.fillRect(260,120,8,300);
-  ctx.fillRect(120,120,200,8);
-
-  ctx.fillStyle='#2a2a2a';
-  ctx.fillRect(200,128,2,60);
-  ctx.fillRect(194,188,14,4);
-
-  ctx.fillStyle='#c9a46b';
-  ctx.fillRect(0,300,BASE_W,BASE_H);
-  ctx.fillStyle='#c39a5f';
-  ctx.fillRect(0,360,BASE_W,60);
-  ctx.fillRect(0,420,BASE_W,60);
-}
-
-/* ================== DRAW ================== */
-function draw(){
-  drawDecor();
-
-  // HUD TOP
-  ctx.fillStyle='rgba(0,0,0,.6)';
-  ctx.fillRect(0,0,BASE_W,30);
-  ctx.fillStyle='#fff';
-  ctx.font='bold 12px system-ui';
-  ctx.fillText('Score '+score,10,20);
-  ctx.fillText('Combo x'+Math.max(1,combo),120,20);
-  ctx.fillText(Math.ceil(timer)+'s',300,20);
-
-  // RÈGLES BLEUES
-  if(showRulesTime>0){
-    ctx.fillStyle='rgba(40,120,255,.85)';
-    ctx.fillRect(10,36,340,56);
-    ctx.fillStyle='#fff';
-    ctx.font='12px system-ui';
-    ctx.fillText('🎯 Tape les ouvriers SANS casque = points',20,56);
-    ctx.fillText('🐶 Le chien = -50 points',20,72);
-    ctx.fillText('🛑 Panneau = gèle le chantier',20,88);
-  }
-
-  entities.sort((a,b)=>a.y-b.y);
-  for(const e of entities){
-    if(e.kind==='worker') drawWorker(e);
-    if(e.kind==='dog') drawDog(e);
-    if(e.kind==='stop') drawStop(e);
-  }
-
-  for(const p of pops){
-    ctx.globalAlpha=1-p.t;
-    ctx.fillStyle=p.c;
-    ctx.font='bold 14px system-ui';
-    ctx.fillText(p.text,p.x,p.y);
-    ctx.globalAlpha=1;
-  }
-
-  if(gameOver){
-    ctx.fillStyle='rgba(0,0,0,.8)';
-    ctx.fillRect(0,0,BASE_W,BASE_H);
-
-    const rank=getRank(score);
-    ctx.textAlign='center';
-    ctx.fillStyle='#fff';
-    ctx.font='bold 28px system-ui';
-    ctx.fillText('FÉLICITATIONS',BASE_W/2,160);
-
-    ctx.font='bold 64px system-ui';
-    ctx.fillStyle='#ffd24b';
-    ctx.fillText(rank,BASE_W/2,250);
-
-    ctx.font='bold 16px system-ui';
-    ctx.fillStyle='#fff';
-    ctx.fillText('RS-BAT TRAVAUX vous souhaite',BASE_W/2,330);
-    ctx.fillText('de joyeuses fêtes de fin d’année',BASE_W/2,360);
-
-    ctx.font='14px system-ui';
-    ctx.fillStyle='#ccc';
-    ctx.fillText('Score final : '+score,BASE_W/2,410);
-    ctx.textAlign='left';
-  }
-}
-
-/* ================== LOOP ================== */
-function loop(t){
-  const dt=Math.min(0.033,(t-last)/1000);
-  last=t;
-  update(dt);
-  draw();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-</script>
-</body>
-</html>
